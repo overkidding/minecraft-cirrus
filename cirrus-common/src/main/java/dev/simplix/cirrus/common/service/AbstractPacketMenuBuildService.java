@@ -6,9 +6,9 @@ import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCloseWindow;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerOpenWindow;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
 import dev.simplix.cirrus.actionhandler.ActionHandler;
+import dev.simplix.cirrus.common.packet.PacketEventsBridge;
 import dev.simplix.cirrus.common.packet.PacketItemStackConverter;
 import dev.simplix.cirrus.common.util.ComponentHelper;
 import dev.simplix.cirrus.inventory.InventoryTracker;
@@ -81,7 +81,7 @@ public abstract class AbstractPacketMenuBuildService implements MenuBuildService
 
         inventoryTracker.track(playerUuid, windowId, tracked);
 
-        sendOpenWindow(playerWrapper, windowId, invType, title);
+        sendOpenWindow(playerWrapper, windowId, invType, titleElement);
         sendWindowItems(playerWrapper, windowId, items, playerWrapper.protocolVersion(), tracked.stateId());
 
         return displayedMenu;
@@ -175,25 +175,17 @@ public abstract class AbstractPacketMenuBuildService implements MenuBuildService
         Menus.remove(playerUuid);
     }
 
-    protected void sendOpenWindow(CirrusPlayerWrapper playerWrapper, int windowId, CirrusInventoryType type, Component title) {
+    protected void sendOpenWindow(CirrusPlayerWrapper playerWrapper, int windowId, CirrusInventoryType type, CirrusChatElement titleElement) {
         ClientVersion clientVersion = resolveClientVersion(playerWrapper);
-        WrapperPlayServerOpenWindow packet;
-        if (clientVersion.isOlderThan(ClientVersion.V_1_14)) {
-            packet = new WrapperPlayServerOpenWindow(
-                windowId,
-                type.toLegacyType(),
-                title,
-                type.size(),
-                -1
-            );
-        } else {
-            packet = new WrapperPlayServerOpenWindow(
-                windowId,
-                type.toPacketEventsTypeId(),
-                title
-            );
+        String titleText = titleElement != null ? titleElement.asLegacyText() : "";
+        PacketWrapper<?> packet = PacketEventsBridge.createOpenWindowPacket(windowId, type, titleText, clientVersion);
+        if (packet != null) {
+            sendPacket(playerWrapper, packet);
         }
-        sendPacket(playerWrapper, packet);
+    }
+
+    protected void sendOpenWindow(CirrusPlayerWrapper playerWrapper, int windowId, CirrusInventoryType type, Component title) {
+        sendOpenWindow(playerWrapper, windowId, type, title != null ? CirrusChatElement.of(title) : CirrusChatElement.empty());
     }
 
     protected void sendWindowItems(CirrusPlayerWrapper playerWrapper, int windowId, CirrusBaseItemStack[] items, int protocolVersion, AtomicInteger stateId) {

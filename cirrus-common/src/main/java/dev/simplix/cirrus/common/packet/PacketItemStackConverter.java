@@ -1,7 +1,6 @@
 package dev.simplix.cirrus.common.packet;
 
 import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
-import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemLore;
 import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemProfile;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.item.type.ItemType;
@@ -11,18 +10,14 @@ import com.github.retrooper.packetevents.protocol.nbt.NBTCompound;
 import com.github.retrooper.packetevents.protocol.nbt.NBTList;
 import com.github.retrooper.packetevents.protocol.nbt.NBTString;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
-import com.github.retrooper.packetevents.util.adventure.AdventureSerializer;
-import dev.simplix.cirrus.common.util.ComponentHelper;
 import dev.simplix.cirrus.item.CirrusBaseItemStack;
 import dev.simplix.cirrus.item.CirrusItemType;
 import dev.simplix.cirrus.text.CirrusChatElement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-import net.kyori.adventure.text.Component;
 
 @Slf4j
 @UtilityClass
@@ -64,15 +59,16 @@ public class PacketItemStackConverter {
         if (useComponents) {
             // 1.20.5+ data components path
             if (displayName != null && !displayName.isEmpty()) {
-                Component nameComponent = ComponentHelper.removeItalic(displayName.asComponent());
-                builder.component(ComponentTypes.CUSTOM_NAME, nameComponent);
+                Object peComponent = PacketEventsBridge.createPacketEventsComponentFromLegacy(displayName.asLegacyText());
+                PacketEventsBridge.setCustomName(builder, peComponent);
             }
 
             if (lore != null && !lore.isEmpty()) {
-                List<Component> loreComponents = lore.stream()
-                    .map(element -> ComponentHelper.removeItalic(element.asComponent()))
-                    .collect(Collectors.toList());
-                builder.component(ComponentTypes.LORE, new ItemLore(loreComponents));
+                List<Object> peLoreComponents = new ArrayList<>();
+                for (CirrusChatElement element : lore) {
+                    peLoreComponents.add(PacketEventsBridge.createPacketEventsComponentFromLegacy(element.asLegacyText()));
+                }
+                PacketEventsBridge.setLore(builder, peLoreComponents);
             }
         } else {
             // Pre-1.20.5: set display name and lore via NBT display tag
@@ -80,22 +76,20 @@ public class PacketItemStackConverter {
             NBTCompound display = new NBTCompound();
 
             if (displayName != null && !displayName.isEmpty()) {
-                Component nameComponent = ComponentHelper.removeItalic(displayName.asComponent());
                 if (pre113) {
-                    display.setTag("Name", new NBTString(AdventureSerializer.toLegacyFormat(nameComponent)));
+                    display.setTag("Name", new NBTString(displayName.asLegacyText()));
                 } else {
-                    display.setTag("Name", new NBTString(AdventureSerializer.toJson(nameComponent)));
+                    display.setTag("Name", new NBTString(PacketEventsBridge.toJsonFromLegacy(displayName.asLegacyText())));
                 }
             }
 
             if (lore != null && !lore.isEmpty()) {
                 NBTList<NBTString> loreList = NBTList.createStringList();
                 for (CirrusChatElement element : lore) {
-                    Component loreComponent = ComponentHelper.removeItalic(element.asComponent());
                     if (pre113) {
-                        loreList.addTag(new NBTString(AdventureSerializer.toLegacyFormat(loreComponent)));
+                        loreList.addTag(new NBTString(element.asLegacyText()));
                     } else {
-                        loreList.addTag(new NBTString(AdventureSerializer.toJson(loreComponent)));
+                        loreList.addTag(new NBTString(PacketEventsBridge.toJsonFromLegacy(element.asLegacyText())));
                     }
                 }
                 display.setTag("Lore", loreList);
