@@ -10,6 +10,7 @@ import com.github.retrooper.packetevents.protocol.nbt.NBTCompound;
 import com.github.retrooper.packetevents.protocol.nbt.NBTList;
 import com.github.retrooper.packetevents.protocol.nbt.NBTString;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import dev.simplix.cirrus.common.util.ComponentHelper;
 import dev.simplix.cirrus.item.CirrusBaseItemStack;
 import dev.simplix.cirrus.item.CirrusItemType;
 import dev.simplix.cirrus.text.CirrusChatElement;
@@ -59,14 +60,22 @@ public class PacketItemStackConverter {
         if (useComponents) {
             // 1.20.5+ data components path
             if (displayName != null && !displayName.isEmpty()) {
-                Object peComponent = PacketEventsBridge.createPacketEventsComponentFromLegacy(displayName.asLegacyText());
+                boolean italic = ComponentHelper.isItalicRequested(displayName);
+                Object peComponent = PacketEventsBridge.createPacketEventsComponentFromLegacy(
+                    displayName.asLegacyText(),
+                    !italic
+                );
                 PacketEventsBridge.setCustomName(builder, peComponent);
             }
 
             if (lore != null && !lore.isEmpty()) {
                 List<Object> peLoreComponents = new ArrayList<>();
                 for (CirrusChatElement element : lore) {
-                    peLoreComponents.add(PacketEventsBridge.createPacketEventsComponentFromLegacy(element.asLegacyText()));
+                    boolean italic = ComponentHelper.isItalicRequested(element);
+                    peLoreComponents.add(PacketEventsBridge.createPacketEventsComponentFromLegacy(
+                        element.asLegacyText(),
+                        !italic
+                    ));
                 }
                 PacketEventsBridge.setLore(builder, peLoreComponents);
             }
@@ -76,20 +85,22 @@ public class PacketItemStackConverter {
             NBTCompound display = new NBTCompound();
 
             if (displayName != null && !displayName.isEmpty()) {
+                boolean italic = ComponentHelper.isItalicRequested(displayName);
                 if (pre113) {
-                    display.setTag("Name", new NBTString(displayName.asLegacyText()));
+                    display.setTag("Name", new NBTString(ComponentHelper.formatLegacy(displayName.asLegacyText(), italic)));
                 } else {
-                    display.setTag("Name", new NBTString(PacketEventsBridge.toJsonFromLegacy(displayName.asLegacyText())));
+                    display.setTag("Name", new NBTString(PacketEventsBridge.toJsonFromLegacy(displayName.asLegacyText(), !italic)));
                 }
             }
 
             if (lore != null && !lore.isEmpty()) {
                 NBTList<NBTString> loreList = NBTList.createStringList();
                 for (CirrusChatElement element : lore) {
+                    boolean italic = ComponentHelper.isItalicRequested(element);
                     if (pre113) {
-                        loreList.addTag(new NBTString(element.asLegacyText()));
+                        loreList.addTag(new NBTString(ComponentHelper.formatLegacy(element.asLegacyText(), italic)));
                     } else {
-                        loreList.addTag(new NBTString(PacketEventsBridge.toJsonFromLegacy(element.asLegacyText())));
+                        loreList.addTag(new NBTString(PacketEventsBridge.toJsonFromLegacy(element.asLegacyText(), !italic)));
                     }
                 }
                 display.setTag("Lore", loreList);

@@ -11,6 +11,9 @@ import java.lang.reflect.Method;
 import java.util.List;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.format.TextDecoration.State;
 
 @Slf4j
 @UtilityClass
@@ -21,6 +24,10 @@ public class PacketEventsBridge {
     }
 
     public static Object createPacketEventsComponentFromLegacy(String legacyText) {
+        return createPacketEventsComponentFromLegacy(legacyText, false);
+    }
+
+    public static Object createPacketEventsComponentFromLegacy(String legacyText, boolean removeItalic) {
         if (legacyText == null) {
             legacyText = "";
         }
@@ -31,10 +38,53 @@ public class PacketEventsBridge {
                 getPacketEventsClassLoader()
             );
             Method fromLegacyFormat = serializerClass.getMethod("fromLegacyFormat", String.class);
-            return fromLegacyFormat.invoke(null, legacyText);
+            Object peComponent = fromLegacyFormat.invoke(null, legacyText);
+            if (removeItalic) {
+                peComponent = applyItalicFalse(peComponent);
+            }
+            return peComponent;
         } catch (Exception e) {
             log.error("Failed to create PacketEvents component from legacy text: {}", legacyText, e);
             return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object applyItalicFalse(Object peComponent) {
+        if (peComponent == null) {
+            return null;
+        }
+        try {
+            if (peComponent instanceof Component) {
+                Component comp = (Component) peComponent;
+                if (comp.decoration(TextDecoration.ITALIC) != State.TRUE) {
+                    return comp.decoration(TextDecoration.ITALIC, State.FALSE);
+                }
+                return comp;
+            }
+            Class<?> textDecorationClass = Class.forName(
+                "net.kyori.adventure.text.format.TextDecoration",
+                true,
+                getPacketEventsClassLoader()
+            );
+            Class<?> stateClass = Class.forName(
+                "net.kyori.adventure.text.format.TextDecoration$State",
+                true,
+                getPacketEventsClassLoader()
+            );
+            Method decorationGetter = peComponent.getClass().getMethod("decoration", textDecorationClass);
+            Object italicDec = Enum.valueOf((Class<Enum>) textDecorationClass, "ITALIC");
+            Object currentDec = decorationGetter.invoke(peComponent, italicDec);
+            Object trueState = Enum.valueOf((Class<Enum>) stateClass, "TRUE");
+            if (!trueState.equals(currentDec)) {
+                Object falseState = Enum.valueOf((Class<Enum>) stateClass, "FALSE");
+                Method decorationSetter = peComponent.getClass().getMethod("decoration", textDecorationClass, stateClass);
+                return decorationSetter.invoke(peComponent, italicDec, falseState);
+            }
+            return peComponent;
+        } catch (Exception e) {
+            log.warn("Failed to apply italic=false to PacketEvents component", e);
+            return peComponent;
         }
     }
 
@@ -58,7 +108,11 @@ public class PacketEventsBridge {
     }
 
     public static String toJsonFromLegacy(String legacyText) {
-        Object peComp = createPacketEventsComponentFromLegacy(legacyText);
+        return toJsonFromLegacy(legacyText, false);
+    }
+
+    public static String toJsonFromLegacy(String legacyText, boolean removeItalic) {
+        Object peComp = createPacketEventsComponentFromLegacy(legacyText, removeItalic);
         return toJsonFromPacketEventsComponent(peComp);
     }
 

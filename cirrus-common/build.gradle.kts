@@ -11,7 +11,8 @@ dependencies {
     compileOnly("net.kyori:adventure-api:4.17.0")
 
     testImplementation("com.github.retrooper:packetevents-api:2.14.0")
-    testImplementation("net.kyori:adventure-api:4.14.0")
-    testImplementation("net.kyori:adventure-nbt:4.14.0")
+    testImplementation("net.kyori:adventure-api:4.25.0")
+    testImplementation("net.kyori:adventure-text-serializer-legacy:4.17.0")
+    testImplementation("net.kyori:adventure-nbt:4.17.0")
     testImplementation("org.jspecify:jspecify:1.0.0")
 }
